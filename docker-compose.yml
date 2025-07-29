@@ -1,0 +1,14 @@
+services:
+  app:
+    build: .  # Builds the image from the Dockerfile in the current directory
+    ports:
+      - "3000:3000"  # Maps port 3000 on host to port 3000 in the container
+    env_file:
+      - .env  # Loads environment variables from the .env file
+    restart: unless-stopped  # Automatically restarts the container unless it is explicitly stopped
+    networks:
+      - app-network  # Connects the app container to the custom network 'app-network'
+
+networks:
+  app-network:
+    driver: bridge  # Uses the default bridge network driver

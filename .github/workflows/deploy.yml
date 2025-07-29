@@ -1,0 +1,75 @@
+# This workflow deploys the app to an AWS EC2 instance when changes are pushed to the 'main' branch
+
+name: Deploy to EC2
+
+# Trigger the workflow on any push to the 'main' branch
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    # Use the latest Ubuntu runner (can be self-hosted or GitHub-hosted)
+    runs-on: self-hosted
+
+    steps:
+      # Step 1: Checkout the latest code from the repository
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # Step 2: Set up Node.js environment (version 18)
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      # Step 3: Install project dependencies
+      - name: Install dependencies
+        run: npm install
+
+      # Step 4: Deploy to EC2 via SSH
+      - name: Deploy to EC2 via SSH
+        # Use environment variables from GitHub Secrets to securely pass sensitive data
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_PRIVATE_KEY }}  # SSH key to access EC2
+          SSH_HOST: ${{ secrets.EC2_HOSTNAME }}                # EC2 public DNS or IP
+          SSH_USER: ${{ secrets.EC2_USER }}                    # SSH user (e.g., ubuntu)
+          DB_HOST: ${{ secrets.DB_HOST }}                      # Database host (e.g., RDS endpoint)
+          DB_USER: ${{ secrets.DB_USER }}                      # DB username
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}              # DB password
+          DB_NAME: ${{ secrets.DB_NAME }}                      # DB name
+          DB_PORT: ${{ secrets.DB_PORT }}                      # DB port (usually 3306)
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}                # JWT secret for auth
+
+        run: |
+          # Save the private key to a file and secure its permissions
+          echo "$SSH_PRIVATE_KEY" > private_key.pem
+          chmod 600 private_key.pem
+
+          # Connect to EC2 and execute deployment commands
+          ssh -o StrictHostKeyChecking=no -i private_key.pem ${SSH_USER}@${SSH_HOST} << EOF
+            # Navigate to the project directory on EC2
+            cd /home/ubuntu/BIKE_INVENTORY_C
+
+            # Pull the latest changes from the main branch
+            git pull origin main
+
+            # Create or overwrite the .env file with all environment variables
+            echo "Writing .env file..."
+            echo "DB_HOST=${DB_HOST}" > .env
+            echo "DB_USER=${DB_USER}" >> .env
+            echo "DB_PASSWORD=${DB_PASSWORD}" >> .env
+            echo "DB_NAME=${DB_NAME}" >> .env
+            echo "DB_PORT=${DB_PORT}" >> .env
+            echo "NODE_ENV=production" >> .env
+            echo "JWT_SECRET=${JWT_SECRET}" >> .env
+
+            # Stop existing containers and rebuild with updated environment
+            echo "Rebuilding containers..."
+            docker-compose --env-file .env down
+            docker-compose --env-file .env up -d --build
+          EOF
+
+          # Remove the SSH private key after use to keep things clean and secure
+          rm -f private_key.pem
