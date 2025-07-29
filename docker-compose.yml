@@ -6,4 +6,3 @@ services:
     env_file:
       - .env  # Loads environment variables from the .env file
     restart: unless-stopped  # Automatically restarts the container unless it is explicitly stopped
-    network_mode: host  # ✅ use EC2 host's network directly
