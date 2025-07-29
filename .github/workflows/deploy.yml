@@ -50,7 +50,7 @@ jobs:
           # Connect to EC2 and execute deployment commands
           ssh -o StrictHostKeyChecking=no -i private_key.pem ${SSH_USER}@${SSH_HOST} << EOF
             # Navigate to the project directory on EC2
-            cd /home/ubuntu/BIKE_INVENTORY_C
+            cd /home/ubuntu/bike-inventory-runner/_work/Bike-Inventory-C/Bike-Inventory-C
 
             # Pull the latest changes from the main branch
             git pull origin main
