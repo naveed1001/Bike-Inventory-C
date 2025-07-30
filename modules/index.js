@@ -9,6 +9,14 @@ router.get('/health', (req, res) => {
     });
 });
 
+router.get('/cicd-working', (req, res) => {
+    res.status(200).json({
+        status: 'OK',
+        timestamp: new Date().toISOString(),
+        service: 'Congratulations! CI/CD Working!!'
+    });
+});
+
 const roles = require('./roles');
 const permissions = require('./permissions');
 const bankingDetails = require('./bankingDetails');
