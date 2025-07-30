@@ -1,12 +1,17 @@
 const multer = require('multer');
+const { S3Client, GetObjectCommand } = require('@aws-sdk/client-s3');
+const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
+const multerS3 = require('multer-s3');
 const path = require('path');
-const fs = require('fs');
 
-const ensureDirectoryExists = (directory) => {
-    if (!fs.existsSync(directory)) {
-        fs.mkdirSync(directory, { recursive: true });
-    }
-};
+// Initialize S3 client
+const s3 = new S3Client({
+    region: process.env.AWS_REGION,
+    credentials: {
+        accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+    },
+});
 
 // Sanitize name for safe file naming
 const sanitizeFileName = (name) => {
@@ -17,59 +22,73 @@ const sanitizeFileName = (name) => {
         .replace(/(^-|-$)/g, '');
 };
 
+// Generate pre-signed URL for an S3 object
+const generatePresignedUrl = async (bucket, key) => {
+    try {
+        const command = new GetObjectCommand({
+            Bucket: bucket,
+            Key: key,
+        });
+        return await getSignedUrl(s3, command, { expiresIn: 3600 }); // URL expires in 1 hour
+    } catch (error) {
+        console.error(`Failed to generate pre-signed URL for ${key}:`, error);
+        throw new Error('Failed to generate pre-signed URL');
+    }
+};
+
 // Brand logo storage configuration
-const brandStorage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        const uploadPath = path.join(__dirname, '../uploads/brands');
-        ensureDirectoryExists(uploadPath);
-        cb(null, uploadPath);
+const brandStorage = multerS3({
+    s3: s3,
+    bucket: process.env.AWS_S3_BUCKET,
+    metadata: (req, file, cb) => {
+        cb(null, { fieldName: file.fieldname });
     },
-    filename: (req, file, cb) => {
+    key: (req, file, cb) => {
         const brandName = req.body.name ? sanitizeFileName(req.body.name) : 'unknown';
         const uniqueSuffix = Date.now() + '-' + file.originalname;
-        cb(null, `brand-${brandName}-${uniqueSuffix}`);
+        cb(null, `brands/brand-${brandName}-${uniqueSuffix}`);
     },
 });
 
 // User profile image storage configuration
-const userStorage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        const uploadPath = path.join(__dirname, '../uploads/users');
-        ensureDirectoryExists(uploadPath);
-        cb(null, uploadPath);
+const userStorage = multerS3({
+    s3: s3,
+    bucket: process.env.AWS_S3_BUCKET,
+    metadata: (req, file, cb) => {
+        cb(null, { fieldName: file.fieldname });
     },
-    filename: (req, file, cb) => {
+    key: (req, file, cb) => {
         const username = req.body.username ? sanitizeFileName(req.body.username) : 'unknown';
         const uniqueSuffix = Date.now() + '-' + file.originalname;
-        cb(null, `user-${username}-${uniqueSuffix}`);
+        cb(null, `users/user-${username}-${uniqueSuffix}`);
     },
 });
 
 // Organization logo storage configuration
-const organizationStorage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        const uploadPath = path.join(__dirname, '../uploads/organizations');
-        ensureDirectoryExists(uploadPath);
-        cb(null, uploadPath);
+const organizationStorage = multerS3({
+    s3: s3,
+    bucket: process.env.AWS_S3_BUCKET,
+    metadata: (req, file, cb) => {
+        cb(null, { fieldName: file.fieldname });
     },
-    filename: (req, file, cb) => {
+    key: (req, file, cb) => {
         const orgName = req.body.name ? sanitizeFileName(req.body.name) : 'unknown';
         const uniqueSuffix = Date.now() + '-' + file.originalname;
-        cb(null, `organization-${orgName}-${uniqueSuffix}`);
+        cb(null, `organizations/organization-${orgName}-${uniqueSuffix}`);
     },
 });
 
 // Instrument picture storage configuration
-const instrumentStorage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        const uploadPath = path.join(__dirname, '../uploads/instruments');
-        ensureDirectoryExists(uploadPath);
-        cb(null, uploadPath);
+const instrumentStorage = multerS3({
+    s3: s3,
+    bucket: process.env.AWS_S3_BUCKET,
+    metadata: (req, file, cb) => {
+        cb(null, { fieldName: file.fieldname });
     },
-    filename: (req, file, cb) => {
+    key: (req, file, cb) => {
         const instrumentNumber = req.body.number ? sanitizeFileName(req.body.number) : 'unknown';
         const uniqueSuffix = Date.now() + '-' + file.originalname;
-        cb(null, `instrument-${instrumentNumber}-${uniqueSuffix}`);
+        cb(null, `instruments/instrument-${instrumentNumber}-${uniqueSuffix}`);
     },
 });
 
@@ -92,7 +111,7 @@ const uploadBrandLogo = (req, res, next) => {
         fileFilter: fileFilter,
     }).single('logo');
 
-    multerSingle(req, res, (err) => {
+    multerSingle(req, res, async (err) => {
         if (err instanceof multer.MulterError && err.code === 'LIMIT_UNEXPECTED_FILE') {
             return res.status(400).json({
                 status: 'error',
@@ -107,6 +126,18 @@ const uploadBrandLogo = (req, res, next) => {
                 message: err.message || 'File upload error',
             });
         }
+        // Generate pre-signed URL if a file was uploaded
+        if (req.file) {
+            try {
+                req.file.presignedUrl = await generatePresignedUrl(process.env.AWS_S3_BUCKET, req.file.key);
+            } catch (error) {
+                return res.status(500).json({
+                    status: 'error',
+                    code: 500,
+                    message: 'Failed to generate pre-signed URL',
+                });
+            }
+        }
         next();
     });
 };
@@ -119,7 +150,7 @@ const uploadUserProfileImage = (req, res, next) => {
         fileFilter: fileFilter,
     }).single('profile_image');
 
-    multerSingle(req, res, (err) => {
+    multerSingle(req, res, async (err) => {
         if (err instanceof multer.MulterError && err.code === 'LIMIT_UNEXPECTED_FILE') {
             return res.status(400).json({
                 status: 'error',
@@ -134,6 +165,18 @@ const uploadUserProfileImage = (req, res, next) => {
                 message: err.message || 'File upload error',
             });
         }
+        // Generate pre-signed URL if a file was uploaded
+        if (req.file) {
+            try {
+                req.file.presignedUrl = await generatePresignedUrl(process.env.AWS_S3_BUCKET, req.file.key);
+            } catch (error) {
+                return res.status(500).json({
+                    status: 'error',
+                    code: 500,
+                    message: 'Failed to generate pre-signed URL',
+                });
+            }
+        }
         next();
     });
 };
@@ -146,7 +189,7 @@ const uploadOrganizationLogo = (req, res, next) => {
         fileFilter: fileFilter,
     }).single('logo');
 
-    multerSingle(req, res, (err) => {
+    multerSingle(req, res, async (err) => {
         if (err instanceof multer.MulterError && err.code === 'LIMIT_UNEXPECTED_FILE') {
             return res.status(400).json({
                 status: 'error',
@@ -161,10 +204,21 @@ const uploadOrganizationLogo = (req, res, next) => {
                 message: err.message || 'File upload error',
             });
         }
+        // Generate pre-signed URL if a file was uploaded
+        if (req.file) {
+            try {
+                req.file.presignedUrl = await generatePresignedUrl(process.env.AWS_S3_BUCKET, req.file.key);
+            } catch (error) {
+                return res.status(500).json({
+                    status: 'error',
+                    code: 500,
+                    message: 'Failed to generate pre-signed URL',
+                });
+            }
+        }
         next();
     });
 };
-
 
 // Multer instance for instrument picture uploads (single file only)
 const uploadInstrumentPicture = (req, res, next) => {
@@ -174,7 +228,7 @@ const uploadInstrumentPicture = (req, res, next) => {
         fileFilter: fileFilter,
     }).single('picture');
 
-    multerSingle(req, res, (err) => {
+    multerSingle(req, res, async (err) => {
         if (err instanceof multer.MulterError && err.code === 'LIMIT_UNEXPECTED_FILE') {
             return res.status(400).json({
                 status: 'error',
@@ -188,6 +242,18 @@ const uploadInstrumentPicture = (req, res, next) => {
                 code: 400,
                 message: err.message || 'File upload error',
             });
+        }
+        // Generate pre-signed URL if a file was uploaded
+        if (req.file) {
+            try {
+                req.file.presignedUrl = await generatePresignedUrl(process.env.AWS_S3_BUCKET, req.file.key);
+            } catch (error) {
+                return res.status(500).json({
+                    status: 'error',
+                    code: 500,
+                    message: 'Failed to generate pre-signed URL',
+                });
+            }
         }
         next();
     });

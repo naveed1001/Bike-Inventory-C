@@ -1,19 +1,58 @@
 const pool = require('../../config/database');
+const { S3Client, DeleteObjectCommand } = require('@aws-sdk/client-s3');
+
+// Initialize S3 client
+const s3 = new S3Client({
+    region: process.env.AWS_REGION,
+    credentials: {
+        accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+    },
+});
+
+// Utility function to extract S3 key from URL
+const getS3KeyFromUrl = (url) => {
+    if (!url) return null;
+    const urlObj = new URL(url);
+    return decodeURIComponent(urlObj.pathname.substring(1)); // Remove leading '/' from pathname
+};
+
+// Utility function to delete a file from S3
+const deleteS3File = async (key) => {
+    if (!key) return;
+    try {
+        const command = new DeleteObjectCommand({
+            Bucket: process.env.AWS_S3_BUCKET,
+            Key: key,
+        });
+        await s3.send(command);
+    } catch (error) {
+        console.error(`Failed to delete S3 file ${key}:`, error);
+        throw new Error('Failed to delete file from S3');
+    }
+};
 
 const createOrganization = async (name, logo, website, address, vendorId, adminId, bankingId) => {
-    const connection = await pool.getConnection();
-    await connection.beginTransaction();
-    const [result] = await connection.execute(
-        'INSERT INTO organization (name, logo, website, address, vendor_id, admin_id, banking_id) VALUES (?, ?, ?, ?, ?, ?, ?)',
-        [name, logo || null, website || null, address || null, vendorId || null, adminId || null, bankingId || null]
-    );
-    const [organization] = await connection.execute(
-        'SELECT id, name, logo, website, address, vendor_id, admin_id, banking_id, created_at, updated_at, deleted_at FROM organization WHERE id = ?',
-        [result.insertId]
-    );
-    await connection.commit();
-    connection.release();
-    return organization[0];
+    let connection;
+    try {
+        connection = await pool.getConnection();
+        await connection.beginTransaction();
+        const [result] = await connection.execute(
+            'INSERT INTO organization (name, logo, website, address, vendor_id, admin_id, banking_id) VALUES (?, ?, ?, ?, ?, ?, ?)',
+            [name, logo || null, website || null, address || null, vendorId || null, adminId || null, bankingId || null]
+        );
+        const [organization] = await connection.execute(
+            'SELECT id, name, logo, website, address, vendor_id, admin_id, banking_id, created_at, updated_at, deleted_at FROM organization WHERE id = ?',
+            [result.insertId]
+        );
+        await connection.commit();
+        return organization[0];
+    } catch (error) {
+        if (connection) await connection.rollback();
+        throw error;
+    } finally {
+        if (connection) connection.release();
+    }
 };
 
 const findAllOrganizations = async () => {
@@ -32,38 +71,66 @@ const findOrganizationById = async (id) => {
 };
 
 const updateOrganization = async (id, name, logo, website, address, vendorId, adminId, bankingId) => {
-    const connection = await pool.getConnection();
-    await connection.beginTransaction();
-    const [existing] = await connection.execute(
-        'SELECT id FROM organization WHERE id = ? AND deleted_at IS NULL',
-        [id]
-    );
-    if (!existing.length) throw new Error('Not found');
-    await connection.execute(
-        'UPDATE organization SET name = ?, logo = ?, website = ?, address = ?, vendor_id = ?, admin_id = ?, banking_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-        [name, logo || null, website || null, address || null, vendorId || null, adminId || null, bankingId || null, id]
-    );
-    const [updatedOrganization] = await connection.execute(
-        'SELECT id, name, logo, website, address, vendor_id, admin_id, banking_id, created_at, updated_at, deleted_at FROM organization WHERE id = ?',
-        [id]
-    );
-    await connection.commit();
-    connection.release();
-    return updatedOrganization[0];
+    let connection;
+    try {
+        connection = await pool.getConnection();
+        await connection.beginTransaction();
+        const [existing] = await connection.execute(
+            'SELECT id, logo FROM organization WHERE id = ? AND deleted_at IS NULL',
+            [id]
+        );
+        if (!existing.length) throw new Error('Not found');
+
+        // If a new logo is provided, delete the old one from S3
+        if (logo && existing[0].logo) {
+            const oldKey = getS3KeyFromUrl(existing[0].logo);
+            await deleteS3File(oldKey);
+        }
+
+        await connection.execute(
+            'UPDATE organization SET name = ?, logo = ?, website = ?, address = ?, vendor_id = ?, admin_id = ?, banking_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+            [name, logo || null, website || null, address || null, vendorId || null, adminId || null, bankingId || null, id]
+        );
+        const [updatedOrganization] = await connection.execute(
+            'SELECT id, name, logo, website, address, vendor_id, admin_id, banking_id, created_at, updated_at, deleted_at FROM organization WHERE id = ?',
+            [id]
+        );
+        await connection.commit();
+        return updatedOrganization[0];
+    } catch (error) {
+        if (connection) await connection.rollback();
+        throw error;
+    } finally {
+        if (connection) connection.release();
+    }
 };
 
 const deleteOrganization = async (id) => {
-    const connection = await pool.getConnection();
-    await connection.beginTransaction();
-    const [existing] = await connection.execute(
-        'SELECT id FROM organization WHERE id = ? AND deleted_at IS NULL',
-        [id]
-    );
-    if (!existing.length) throw new Error('Not found');
-    await connection.execute('UPDATE organization SET deleted_at = CURRENT_TIMESTAMP WHERE id = ?', [id]);
-    await connection.commit();
-    connection.release();
-    return true;
+    let connection;
+    try {
+        connection = await pool.getConnection();
+        await connection.beginTransaction();
+        const [existing] = await connection.execute(
+            'SELECT id, logo FROM organization WHERE id = ? AND deleted_at IS NULL',
+            [id]
+        );
+        if (!existing.length) throw new Error('Not found');
+
+        // Delete logo from S3 if it exists
+        if (existing[0].logo) {
+            const key = getS3KeyFromUrl(existing[0].logo);
+            await deleteS3File(key);
+        }
+
+        await connection.execute('UPDATE organization SET deleted_at = CURRENT_TIMESTAMP WHERE id = ?', [id]);
+        await connection.commit();
+        return true;
+    } catch (error) {
+        if (connection) await connection.rollback();
+        throw error;
+    } finally {
+        if (connection) connection.release();
+    }
 };
 
 module.exports = { createOrganization, findAllOrganizations, findOrganizationById, updateOrganization, deleteOrganization };

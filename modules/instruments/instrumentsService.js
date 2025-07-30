@@ -2,19 +2,42 @@ const { validateCreateInstrument, validateUpdateInstrument } = require('./instru
 const { ApiError, ApiResponse } = require('../../utils');
 const InstrumentsRepository = require('./instrumentsRepository');
 const { StatusCodes } = require('http-status-codes');
-const path = require('path');
-const fs = require('fs');
+const { S3Client, GetObjectCommand } = require('@aws-sdk/client-s3');
+const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
+
+// Initialize S3 client
+const s3 = new S3Client({
+    region: process.env.AWS_REGION,
+    credentials: {
+        accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+    },
+});
+
+// Utility function to extract S3 key from URL
+const getS3KeyFromUrl = (url) => {
+    if (!url) return null;
+    const urlObj = new URL(url);
+    return decodeURIComponent(urlObj.pathname.substring(1)); // Remove leading '/' from pathname
+};
 
 class InstrumentsService {
     async getAllInstruments() {
         const instruments = await InstrumentsRepository.findAllInstruments();
-        if (!instruments) {
-            throw new ApiError('Failed to retrieve instruments', StatusCodes.INTERNAL_SERVER_ERROR);
-        }
+        const instrumentsWithPresignedUrls = await Promise.all(instruments.map(async (instrument) => {
+            if (instrument.picture) {
+                const key = getS3KeyFromUrl(instrument.picture);
+                instrument.picturePresignedUrl = await getSignedUrl(s3, new GetObjectCommand({
+                    Bucket: process.env.AWS_S3_BUCKET,
+                    Key: key,
+                }), { expiresIn: 3600 });
+            }
+            return instrument;
+        }));
         return new ApiResponse({
             code: StatusCodes.OK,
             message: 'Instruments retrieved successfully',
-            payload: { instruments }
+            payload: { instruments: instrumentsWithPresignedUrls }
         });
     }
 
@@ -26,6 +49,13 @@ class InstrumentsService {
         const instrument = await InstrumentsRepository.findInstrumentById(parsedId);
         if (!instrument) {
             throw new ApiError('Instrument not found', StatusCodes.NOT_FOUND);
+        }
+        if (instrument.picture) {
+            const key = getS3KeyFromUrl(instrument.picture);
+            instrument.picturePresignedUrl = await getSignedUrl(s3, new GetObjectCommand({
+                Bucket: process.env.AWS_S3_BUCKET,
+                Key: key,
+            }), { expiresIn: 3600 });
         }
         return new ApiResponse({
             code: StatusCodes.OK,
@@ -39,16 +69,12 @@ class InstrumentsService {
         if (error) throw new ApiError(error.details[0].message, StatusCodes.BAD_REQUEST);
 
         const { number, amount, date } = data;
-        let picture = data.picture || null;
+        const pictureUrl = file ? file.location : null;
+        const picturePresignedUrl = file ? file.presignedUrl : null;
 
-        if (file) {
-            picture = path.join('uploads', 'instruments', file.filename).replace(/\\/g, '/');
-        }
+        const instrument = await InstrumentsRepository.createInstrument(number, amount, date, pictureUrl);
+        instrument.picturePresignedUrl = picturePresignedUrl;
 
-        const instrument = await InstrumentsRepository.createInstrument(number, amount, date, picture);
-        if (!instrument && file && picture) {
-            fs.unlinkSync(path.join(__dirname, '..', '..', picture));
-        }
         return new ApiResponse({
             code: StatusCodes.CREATED,
             message: 'Instrument created successfully',
@@ -65,30 +91,15 @@ class InstrumentsService {
         if (error) throw new ApiError(error.details[0].message, StatusCodes.BAD_REQUEST);
 
         const { number, amount, date } = data;
-        let picture = data.picture || null;
+        const pictureUrl = file ? file.location : null;
+        const picturePresignedUrl = file ? file.presignedUrl : null;
 
-        const existingInstrument = await InstrumentsRepository.findInstrumentById(parsedId);
-        if (!existingInstrument) {
-            if (file) {
-                fs.unlinkSync(path.join(__dirname, '..', '..', 'uploads', 'instruments', file.filename));
-            }
-            throw new ApiError('Instrument not found', StatusCodes.NOT_FOUND);
-        }
-
-        if (file) {
-            picture = path.join('uploads', 'instruments', file.filename).replace(/\\/g, '/');
-            if (existingInstrument.picture) {
-                fs.unlinkSync(path.join(__dirname, '..', '..', existingInstrument.picture));
-            }
-        }
-
-        const instrument = await InstrumentsRepository.updateInstrument(parsedId, number, amount, date, picture);
+        const instrument = await InstrumentsRepository.updateInstrument(parsedId, number, amount, date, pictureUrl);
         if (!instrument) {
-            if (file && picture) {
-                fs.unlinkSync(path.join(__dirname, '..', '..', picture));
-            }
             throw new ApiError('Instrument not found', StatusCodes.NOT_FOUND);
         }
+        instrument.picturePresignedUrl = picturePresignedUrl;
+
         return new ApiResponse({
             code: StatusCodes.OK,
             message: 'Instrument updated successfully',
@@ -109,10 +120,6 @@ class InstrumentsService {
         const success = await InstrumentsRepository.deleteInstrument(parsedId);
         if (!success) {
             throw new ApiError('Instrument not found', StatusCodes.NOT_FOUND);
-        }
-
-        if (instrument.picture) {
-            fs.unlinkSync(path.join(__dirname, '..', '..', instrument.picture));
         }
 
         return new ApiResponse({

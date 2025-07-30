@@ -31,12 +31,15 @@ class BrandService {
 
     async createBrand(data, file) {
         const { name, website } = data;
-        const logoPath = file ? file.path : null;
+        const logoUrl = file ? file.location : null;
+        const logoPresignedUrl = file ? file.presignedUrl : null;
         const validationData = { name, website };
         const { error } = validateCreateBrand(validationData);
         if (error) throw new ApiError(error.details[0].message, StatusCodes.BAD_REQUEST);
 
-        const brand = await BrandRepository.createBrand(name, logoPath, website);
+        const brand = await BrandRepository.createBrand(name, logoUrl, website);
+        // Include pre-signed URL in the response
+        brand.logoPresignedUrl = logoPresignedUrl;
         return new ApiResponse({
             code: StatusCodes.CREATED,
             message: 'Brand created successfully',
@@ -50,15 +53,18 @@ class BrandService {
             throw new ApiError('Invalid brand ID', StatusCodes.BAD_REQUEST);
         }
         const { name, website } = data;
-        const logoPath = file ? file.path : null;
+        const logoUrl = file ? file.location : null;
+        const logoPresignedUrl = file ? file.presignedUrl : null;
         const validationData = { name, website };
         const { error } = validateUpdateBrand(validationData);
         if (error) throw new ApiError(error.details[0].message, StatusCodes.BAD_REQUEST);
 
-        const brand = await BrandRepository.updateBrand(parsedId, name, logoPath, website);
+        const brand = await BrandRepository.updateBrand(parsedId, name, logoUrl, website);
         if (!brand) {
             throw new ApiError('Brand not found', StatusCodes.NOT_FOUND);
         }
+        // Include pre-signed URL in the response
+        brand.logoPresignedUrl = logoPresignedUrl;
         return new ApiResponse({
             code: StatusCodes.OK,
             message: 'Brand updated successfully',

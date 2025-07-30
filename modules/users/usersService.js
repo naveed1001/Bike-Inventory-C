@@ -37,19 +37,23 @@ class UsersService {
         if (error) throw new ApiError(error.details[0].message, StatusCodes.BAD_REQUEST);
 
         const { username, email, phone, address, password, role_id, employed_at, banking_id } = data;
-        const profileImage = file ? file.path : null;
+        const profileImageUrl = file ? file.location : null;
+        const profileImagePresignedUrl = file ? file.presignedUrl : null;
 
         const user = await UsersRepository.createUser(
             username,
             email,
             phone,
             address,
-            profileImage,
+            profileImageUrl,
             password,
             role_id,
             employed_at,
             banking_id
         );
+
+        // Include pre-signed URL in the response
+        user.profileImagePresignedUrl = profileImagePresignedUrl;
 
         return new ApiResponse({
             code: StatusCodes.CREATED,
@@ -67,7 +71,8 @@ class UsersService {
         if (error) throw new ApiError(error.details[0].message, StatusCodes.BAD_REQUEST);
 
         const { username, email, phone, address, password, role_id, employed_at, banking_id } = data;
-        const profileImage = file ? file.path : null;
+        const profileImageUrl = file ? file.location : null;
+        const profileImagePresignedUrl = file ? file.presignedUrl : null;
 
         const user = await UsersRepository.updateUser(
             parsedId,
@@ -75,7 +80,7 @@ class UsersService {
             email,
             phone,
             address,
-            profileImage,
+            profileImageUrl,
             password,
             role_id,
             employed_at,
@@ -84,6 +89,10 @@ class UsersService {
         if (!user) {
             throw new ApiError('User not found', StatusCodes.NOT_FOUND);
         }
+
+        // Include pre-signed URL in the response
+        user.profileImagePresignedUrl = profileImagePresignedUrl;
+
         return new ApiResponse({
             code: StatusCodes.OK,
             message: 'User updated successfully',

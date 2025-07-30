@@ -26,13 +26,6 @@ const createInstrumentSchema = Joi.object({
         .messages({
             'date.base': 'Date must be a valid date',
         }),
-    picture: Joi.string()
-        .trim()
-        .max(255)
-        .allow(null)
-        .messages({
-            'string.max': 'Picture path must not exceed 255 characters',
-        }),
 });
 
 const updateInstrumentSchema = Joi.object({
@@ -60,13 +53,6 @@ const updateInstrumentSchema = Joi.object({
         .allow(null)
         .messages({
             'date.base': 'Date must be a valid date',
-        }),
-    picture: Joi.string()
-        .trim()
-        .max(255)
-        .allow(null)
-        .messages({
-            'string.max': 'Picture path must not exceed 255 characters',
         }),
 });
 

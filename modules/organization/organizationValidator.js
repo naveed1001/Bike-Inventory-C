@@ -12,14 +12,6 @@ const createOrganizationSchema = Joi.object({
             'string.max': 'Name must not exceed 100 characters',
             'any.required': 'Name is required',
         }),
-    logo: Joi.string()
-        .trim()
-        .max(255)
-        .allow(null)
-        .optional()
-        .messages({
-            'string.max': 'Logo URL must not exceed 255 characters',
-        }),
     website: Joi.string()
         .trim()
         .max(255)
@@ -79,14 +71,6 @@ const updateOrganizationSchema = Joi.object({
             'string.min': 'Name must be at least 1 character long',
             'string.max': 'Name must not exceed 100 characters',
             'any.required': 'Name is required',
-        }),
-    logo: Joi.string()
-        .trim()
-        .max(255)
-        .allow(null)
-        .optional()
-        .messages({
-            'string.max': 'Logo URL must not exceed 255 characters',
         }),
     website: Joi.string()
         .trim()
