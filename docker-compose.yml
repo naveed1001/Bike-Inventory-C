@@ -6,3 +6,12 @@ services:
     env_file:
       - .env  # Loads environment variables from the .env file
     restart: unless-stopped  # Automatically restarts the container unless it is explicitly stopped
+  nginx:
+    image: nginx:latest
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf
+    depends_on:
+      - app
+    restart: unless-stopped
