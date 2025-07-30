@@ -67,8 +67,8 @@ jobs:
 
             # Stop existing containers and rebuild with updated environment
             echo "Rebuilding containers..."
-            docker-compose --env-file .env down
-            docker-compose --env-file .env up -d --build
+            docker compose --env-file .env down
+            docker compose --env-file .env up -d --build
           EOF
 
           # Remove the SSH private key after use to keep things clean and secure
