@@ -1,6 +1,14 @@
 const express = require('express');
 const router = express.Router();
 
+router.get('/health', (req, res) => {
+    res.status(200).json({
+        status: 'OK',
+        timestamp: new Date().toISOString(),
+        service: 'bike-inventory-api'
+    });
+});
+
 const roles = require('./roles');
 const permissions = require('./permissions');
 const bankingDetails = require('./bankingDetails');
