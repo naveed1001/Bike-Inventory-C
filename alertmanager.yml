@@ -1,9 +1,10 @@
 global:
-  smtp_smarthost: 'YOUR_SMTP_HOST:YOUR_SMTP_PORT'
+  smtp_smarthost: 'smtp.gmail.com:587'
   smtp_from: '${SMTP_FROM}'
   smtp_auth_username: '${SMTP_FROM}'
   smtp_auth_password: '${SMTP_AUTH_PASSWORD}'
   smtp_require_tls: true
+  smtp_hello: 'localhost'
 
 route:
   receiver: 'email-notifications'
