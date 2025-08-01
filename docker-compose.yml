@@ -43,12 +43,12 @@ services:
   alertmanager:
     image: prom/alertmanager:v0.27.0
     volumes:
-    - ./alertmanager.yml:/etc/alertmanager/alertmanager.yml
-    - alertmanager-data:/alertmanager
+      - ./alertmanager.yml:/etc/alertmanager/alertmanager.yml
+      - alertmanager-data:/alertmanager
     ports:
-    - "9093:9093"
+      - "9093:9093"
     env_file:
-    - .env
+      - .env
     restart: unless-stopped
 
 volumes:
