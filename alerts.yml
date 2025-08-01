@@ -19,7 +19,7 @@ groups:
       description: "The bike-inventory-api service is not responding."
 
   - alert: TestNotification
-    expr: up{job="prometheus"} == 1
+    expr: vector(1)
     for: 10s
     labels:
       severity: info
