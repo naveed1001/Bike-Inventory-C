@@ -1,0 +1,19 @@
+groups:
+- name: bike-inventory-alerts
+  rules:
+  - alert: HighErrorRate
+    expr: rate(http_requests_total{status=~"5..", app="bike-inventory-api"}[5m]) > 0.01
+    for: 5m
+    labels:
+      severity: critical
+    annotations:
+      summary: "High error rate detected in bike-inventory-api"
+      description: "Error rate for HTTP requests (status 5xx) is above 1% for the last 5 minutes."
+  - alert: AppDown
+    expr: up{job="bike-inventory-api"} == 0
+    for: 2m
+    labels:
+      severity: critical
+    annotations:
+      summary: "Bike Inventory API is down"
+      description: "The bike-inventory-api service is not responding."

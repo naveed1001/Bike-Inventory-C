@@ -43,6 +43,10 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}  # AWS secret key for S3
           AWS_REGION: ${{ secrets.AWS_REGION }}                # AWS region (e.g., us-east-1)
           AWS_S3_BUCKET: ${{ secrets.AWS_S3_BUCKET }}          # S3 bucket name (e.g., bike-inventory-images)
+          GRAFANA_ADMIN_PASSWORD: ${{ secrets.GRAFANA_ADMIN_PASSWORD }}
+          SMTP_AUTH_PASSWORD: ${{ secrets.SMTP_AUTH_PASSWORD }}
+          SMTP_FROM: ${{ secrets.SMTP_FROM }}
+          RECIPIENT_EMAIL: ${{ secrets.RECIPIENT_EMAIL }}
 
         run: |
           # Save the private key to a file and secure its permissions
@@ -70,6 +74,10 @@ jobs:
             echo "AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}" >> .env
             echo "AWS_REGION=${AWS_REGION}" >> .env
             echo "AWS_S3_BUCKET=${AWS_S3_BUCKET}" >> .env
+            echo "GRAFANA_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD}" >> .env
+            echo "SMTP_AUTH_PASSWORD=${SMTP_AUTH_PASSWORD}" >> .env
+            echo "SMTP_FROM=${SMTP_FROM}" >> .env
+            echo "RECIPIENT_EMAIL=${RECIPIENT_EMAIL}" >> .env
 
             # Stop existing containers and rebuild with updated environment
             echo "Rebuilding containers..."

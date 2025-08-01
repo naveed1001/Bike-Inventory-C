@@ -1,30 +1,46 @@
 const pool = require('../../config/database');
+// Import required AWS SDK classes
 const { S3Client, DeleteObjectCommand } = require('@aws-sdk/client-s3');
 
-// Initialize S3 client
+// 🔧 Initialize the AWS S3 client using credentials from environment variables
 const s3 = new S3Client({
     region: process.env.AWS_REGION,
     credentials: {
         accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-    },
+        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
+    }
 });
 
-// Utility function to extract S3 key from URL
+/**
+ * 🧰 Extracts the object key (i.e., path inside the bucket) from a full S3 URL.
+ * 
+ * url - The full S3 URL.
+ * @returns {string|null} - The extracted key or null if URL is invalid.
+ * 
+ * Example:
+ * Input: https://my-bucket.s3.amazonaws.com/folder/image.jpg
+ * Output: folder/image.jpg
+ */
 const getS3KeyFromUrl = (url) => {
     if (!url) return null;
-    const urlObj = new URL(url);
-    return decodeURIComponent(urlObj.pathname.substring(1)); // Remove leading '/' from pathname
+    const urlObj = new URL(url); // Parse the URL
+    return decodeURIComponent(urlObj.pathname.substring(1));
 };
 
-// Utility function to delete a file from S3
+/**
+ * 🗑️ Deletes an object from AWS S3 using its key.
+ * key - The S3 object key (path inside bucket).
+ */
 const deleteS3File = async (key) => {
-    if (!key) return;
+    if (!key) return; // Skip if key is invalid
     try {
+        // Create a delete command with target bucket and key
         const command = new DeleteObjectCommand({
             Bucket: process.env.AWS_S3_BUCKET,
-            Key: key,
+            Key: key                           // Object key to delete
         });
+
+        // Send the command to S3
         await s3.send(command);
     } catch (error) {
         console.error(`Failed to delete S3 file ${key}:`, error);

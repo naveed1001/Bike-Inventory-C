@@ -1,0 +1,25 @@
+global:
+  smtp_smarthost: 'YOUR_SMTP_HOST:YOUR_SMTP_PORT'
+  smtp_from: '${SMTP_FROM}'
+  smtp_auth_username: '${SMTP_FROM}'
+  smtp_auth_password: '${SMTP_AUTH_PASSWORD}'
+  smtp_require_tls: true
+
+route:
+  receiver: 'email-notifications'
+  group_by: ['alertname', 'app']
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+
+receivers:
+  - name: 'email-notifications'
+    email_configs:
+      - to: '${RECIPIENT_EMAIL}'
+        send_resolved: true
+        headers:
+          Subject: 'Alert: {{ .CommonAnnotations.summary }}'
+        html: |
+          <p><b>Alert: {{ .CommonAnnotations.summary }}</b></p>
+          <p>{{ .CommonAnnotations.description }}</p>
+          <p>Time: {{ .StartsAt }}</p>

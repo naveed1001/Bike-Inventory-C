@@ -5,4 +5,49 @@ services:
       - "3000:3000"  # Maps port 3000 on host to port 3000 in the container
     env_file:
       - .env  # Loads environment variables from the .env file
-    restart: unless-stopped  # Automatically restarts the container unless it is explicitly stopped
+    restart: unless-stopped  # Automatically restarts the container unless explicitly stopped
+
+  prometheus:
+    image: prom/prometheus:v2.48.0
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus-data:/prometheus
+    ports:
+      - "9090:9090"
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:10.2.0
+    volumes:
+      - grafana-data:/var/lib/grafana
+    ports:
+      - "3001:3000"  # Maps port 3001 on host to avoid conflict with app
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD}
+    restart: unless-stopped
+
+  node-exporter:
+    image: prom/node-exporter:v1.8.2
+    volumes:
+      - /:/host:ro,rslave
+    command:
+      - '--path.rootfs=/host'
+    ports:
+      - "9100:9100"
+    restart: unless-stopped
+    pid: host
+
+  alertmanager:
+    image: prom/alertmanager:v0.27.0
+    volumes:
+      - ./alertmanager.yml:/etc/alertmanager/alertmanager.yml
+      - alertmanager-data:/alertmanager
+    ports:
+      - "9093:9093"
+    restart: unless-stopped
+
+volumes:
+  prometheus-data:
+  grafana-data:
+  alertmanager-data:
