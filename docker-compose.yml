@@ -6,6 +6,8 @@ services:
     env_file:
       - .env  # Loads environment variables from the .env file
     restart: unless-stopped  # Automatically restarts the container unless explicitly stopped
+    networks:
+      - monitoring-network
 
   prometheus:
     image: prom/prometheus:v2.53.0
@@ -15,6 +17,8 @@ services:
     ports:
       - "9090:9090"
     restart: unless-stopped
+    networks:
+      - monitoring-network
 
   grafana:
     image: grafana/grafana:10.2.0
@@ -26,6 +30,8 @@ services:
       - GF_SECURITY_ADMIN_USER=admin
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD}
     restart: unless-stopped
+    networks:
+      - monitoring-network
 
   node-exporter:
     image: prom/node-exporter:v1.8.2
@@ -37,9 +43,9 @@ services:
       - "9100:9100"
     restart: unless-stopped
     pid: host
+    networks:
+      - monitoring-network
 
-
-  
   alertmanager:
     image: prom/alertmanager:v0.27.0
     volumes:
@@ -50,8 +56,14 @@ services:
     env_file:
       - .env
     restart: unless-stopped
+    networks:
+      - monitoring-network
 
 volumes:
   prometheus-data:
   grafana-data:
   alertmanager-data:
+
+networks:
+  monitoring-network:
+    driver: bridge
