@@ -27,8 +27,9 @@ groups:
           description: "The bike-inventory-api service is not responding."
 
       # 🔔 Alert #3: Simple test to verify Alertmanager integration
+  - name: test-rules
+    rules:    
       - alert: TestNotification
-        # This will always be true (as long as Prometheus is up), so you can use it to test email/slack alerts
         expr: vector(1)
         for: 10s
         labels:
