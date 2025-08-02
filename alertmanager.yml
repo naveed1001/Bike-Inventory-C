@@ -5,7 +5,7 @@ global:
 
   # Gmail login credentials for authentication
   smtp_auth_username: 'naveedravian10001@gmail.com'
-  smtp_auth_password: '${SMTP_AUTH_PASSWORD}'
+  smtp_auth_password: 'srrgfujdfrfmqajc'
 
   smtp_require_tls: true   # Require TLS for secure email sending
 
@@ -27,7 +27,7 @@ route:
 receivers:
   - name: 'email-notifications'
     email_configs:
-      - to: '${RECIPIENT_EMAIL}'  # Who should receive the alert email
+      - to: 'naveedravian10001@gmail.com'  # Who should receive the alert email
 
         send_resolved: true  # Also send notifications when the alert is resolved
 
