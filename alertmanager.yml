@@ -1,25 +1,41 @@
+# ✉️ GLOBAL EMAIL SETTINGS
 global:
-  smtp_smarthost: 'smtp.gmail.com:587'
-  smtp_from: '${SMTP_FROM}'
+  smtp_smarthost: 'smtp.gmail.com:587'   # Gmail SMTP server and port (TLS-enabled)
+  smtp_from: '${SMTP_FROM}'   # Email address sending FROM
+
+  # Gmail login credentials for authentication
   smtp_auth_username: '${SMTP_FROM}'
   smtp_auth_password: '${SMTP_AUTH_PASSWORD}'
-  smtp_require_tls: true
-  smtp_hello: 'localhost'
 
+  smtp_require_tls: true   # Require TLS for secure email sending
+
+  smtp_hello: 'localhost'   # The "Hello" hostname used during SMTP handshake (can be anything)
+
+
+# 🔁 ROUTING RULES FOR ALERTS
 route:
-  receiver: 'email-notifications'
-  group_by: ['alertname', 'app']
-  group_wait: 30s
-  group_interval: 5m
-  repeat_interval: 4h
+  receiver: 'email-notifications'   # All alerts go to this receiver
+  group_by: ['alertname', 'app']   # Alerts with the same alertname and app label will be grouped together
 
+  group_wait: 30s   # Wait 30s to group initial alerts before sending
+
+  group_interval: 5m   # If more alerts come in from the same group within 5 minutes, wait to send again
+  repeat_interval: 4h   # Re-send alerts that are still active every 4 hours
+
+
+# 📧 RECEIVER CONFIGURATION
 receivers:
   - name: 'email-notifications'
     email_configs:
-      - to: '${RECIPIENT_EMAIL}'
-        send_resolved: true
+      - to: '${RECIPIENT_EMAIL}'  # Who should receive the alert email
+
+        send_resolved: true  # Also send notifications when the alert is resolved
+
+        # Custom subject for the email using alert annotations
         headers:
           Subject: 'Alert: {{ .CommonAnnotations.summary }}'
+
+        # Email body in HTML format
         html: |
           <p><b>Alert: {{ .CommonAnnotations.summary }}</b></p>
           <p>{{ .CommonAnnotations.description }}</p>

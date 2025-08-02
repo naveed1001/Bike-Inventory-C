@@ -1,24 +1,35 @@
+# 🔧 GLOBAL SETTINGS
 global:
-  scrape_interval: 15s
-  evaluation_interval: 15s
+  scrape_interval: 15s   # How often Prometheus will scrape (collect) metrics from targets
+  evaluation_interval: 15s   # How often Prometheus will evaluate alert rules
 
+# LOAD ALERT RULES FILE
 rule_files:
-  - "alerts.yml"
+  - "alerts.yml"  # Custom alert rules file (optional but referenced here)
 
+
+# TARGET SCRAPE CONFIGURATIONS
 scrape_configs:
+  # Prometheus scraping itself for internal metrics
   - job_name: 'prometheus'
     static_configs:
       - targets: ['localhost:9090']
+
+  # Scrape metrics from Node Exporter (system-level host metrics like CPU, RAM)
   - job_name: 'node-exporter'
     static_configs:
       - targets: ['node-exporter:9100']
+
+  # Scrape Node.js backend (bike-inventory-api)
   - job_name: 'bike-inventory-api'
     static_configs:
-      - targets: ['app:3000']
+      - targets: ['app:3000']  # Your Express app running in Docker
         labels:
-          app: 'bike-inventory-api'
+          app: 'bike-inventory-api'  # Custom label for better filtering in Grafana/Prometheus
 
+
+# 🚨 ALERTMANAGER CONFIGURATION
 alerting:
   alertmanagers:
     - static_configs:
-        - targets: ['alertmanager:9093']
+        - targets: ['alertmanager:9093']  # Connects Prometheus to Alertmanager container

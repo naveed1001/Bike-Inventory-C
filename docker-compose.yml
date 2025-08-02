@@ -1,69 +1,63 @@
 services:
+  # 🟢 Your Node.js Application
   app:
-    build: .  # Builds the image from the Dockerfile in the current directory
+    build: .  # Build the Docker image using the Dockerfile in the current directory
     ports:
-      - "3000:3000"  # Maps port 3000 on host to port 3000 in the container
+      - "3000:3000"  # Expose port 3000 on the host and container
     env_file:
-      - .env  # Loads environment variables from the .env file
-    restart: unless-stopped  # Automatically restarts the container unless explicitly stopped
-    networks:
-      - monitoring-network
+      - .env  # Load environment variables from the .env file
+    restart: unless-stopped  # Restart the container unless manually stopped
 
+  # 📊 Prometheus - Metrics Collector
   prometheus:
-    image: prom/prometheus:v2.53.0
+    image: prom/prometheus:v2.53.0  # Use a specific version of Prometheus
     volumes:
-      - ./prometheus.yml:/etc/prometheus/prometheus.yml
-      - prometheus-data:/prometheus
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml  # Mount your config file
+      - prometheus-data:/prometheus  # Persist Prometheus data between restarts
     ports:
-      - "9090:9090"
+      - "9090:9090"  # Access Prometheus UI at http://<host>:9090
     restart: unless-stopped
-    networks:
-      - monitoring-network
 
+  # 📈 Grafana - Dashboard & Visualization
   grafana:
-    image: grafana/grafana:10.2.0
+    image: grafana/grafana:10.2.0  # Use a specific version of Grafana
     volumes:
-      - grafana-data:/var/lib/grafana
+      - grafana-data:/var/lib/grafana  # Persist dashboards and config
     ports:
-      - "3001:3000"  # Maps port 3001 on host to avoid conflict with app
+      - "3001:3000"  # Host port 3001 maps to container’s Grafana port 3000
     environment:
-      - GF_SECURITY_ADMIN_USER=admin
-      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD}
+      - GF_SECURITY_ADMIN_USER=admin  # Set admin username
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD}  # Set admin password using env var
     restart: unless-stopped
-    networks:
-      - monitoring-network
 
+  # 🧠 Node Exporter - EC2 Host Metrics
   node-exporter:
-    image: prom/node-exporter:v1.8.2
+    image: prom/node-exporter:v1.8.2  # Export system-level metrics (CPU, disk, memory)
     volumes:
-      - /:/host:ro,rslave
+      - /:/host:ro,rslave  # Mount entire host filesystem as read-only
     command:
-      - '--path.rootfs=/host'
+      - '--path.rootfs=/host'  # Use the mounted host filesystem for accurate metrics
     ports:
-      - "9100:9100"
+      - "9100:9100"  # Access raw metrics at http://<host>:9100/metrics
     restart: unless-stopped
-    pid: host
-    networks:
-      - monitoring-network
+    pid: host  # Share process ID namespace to report correct CPU/memory stats
 
+  # 🚨 Alertmanager - Notification System
   alertmanager:
-    image: prom/alertmanager:v0.27.0
+    image: prom/alertmanager:v0.27.0  # Manages alerts from Prometheus
     volumes:
-      - ./alertmanager.yml:/etc/alertmanager/alertmanager.yml
-      - alertmanager-data:/alertmanager
+      - ./alertmanager.yml:/etc/alertmanager/alertmanager.yml  # Config file for alert rules and receivers
+      - alertmanager-data:/alertmanager  # Persist alert history/config
     ports:
-      - "9093:9093"
+      - "9093:9093"  # Access Alertmanager UI at http://<host>:9093
     env_file:
-      - .env
+      - .env  # Load secrets like Slack Webhook or Email config
     restart: unless-stopped
-    networks:
-      - monitoring-network
 
+# -------------------------------------
+# 🔁 Named Volumes - Persist Data
+# -------------------------------------
 volumes:
-  prometheus-data:
-  grafana-data:
-  alertmanager-data:
-
-networks:
-  monitoring-network:
-    driver: bridge
+  prometheus-data:    # Persistent storage for Prometheus
+  grafana-data:       # Persistent storage for Grafana
+  alertmanager-data:  # Persistent storage for Alertmanager

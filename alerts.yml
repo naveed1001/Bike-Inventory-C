@@ -1,28 +1,38 @@
 groups:
-- name: bike-inventory-alerts
-  rules:
-  - alert: HighErrorRate
-    expr: rate(http_requests_total{status=~"5..", app="bike-inventory-api"}[5m]) > 0.01
-    for: 5m
-    labels:
-      severity: critical
-    annotations:
-      summary: "High error rate detected in bike-inventory-api"
-      description: "Error rate for HTTP requests (status 5xx) is above 1% for the last 5 minutes."
-  - alert: AppDown
-    expr: up{job="bike-inventory-api"} == 0
-    for: 2m
-    labels:
-      severity: critical
-    annotations:
-      summary: "Bike Inventory API is down"
-      description: "The bike-inventory-api service is not responding."
+  - name: bike-inventory-alerts   # Group name for organizational purposes
 
-  - alert: TestNotification
-    expr: up{job="prometheus"} == 1
-    for: 10s
-    labels:
-      severity: info
-    annotations:
-      summary: "Test Notification for Bike Inventory"
-      description: "This is a test notification to verify Alertmanager email setup."
+    rules:
+      # 🚨 Alert #1: High HTTP 5xx error rate
+      - alert: HighErrorRate
+        # PromQL expression that calculates the rate of 5xx errors over the past 5 minutes
+        expr: rate(http_requests_total{status=~"5..", app="bike-inventory-api"}[5m]) > 0.01
+        # The alert will trigger only if the condition is true for 5 minutes continuously
+        for: 5m
+        labels:
+          severity: critical  # Custom severity label
+        annotations:
+          summary: "High error rate detected in bike-inventory-api"
+          description: "Error rate for HTTP requests (status 5xx) is above 1% for the last 5 minutes."
+
+      # 🚨 Alert #2: API service is down
+      - alert: AppDown
+        # Check if the service is not up (0 means down)
+        expr: up{job="bike-inventory-api"} == 0
+        # If it's down for more than 2 minutes, fire the alert
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Bike Inventory API is down"
+          description: "The bike-inventory-api service is not responding."
+
+      # 🔔 Alert #3: Simple test to verify Alertmanager integration
+      - alert: TestNotification
+        # This will always be true (as long as Prometheus is up), so you can use it to test email/slack alerts
+        expr: vector(1)
+        for: 10s
+        labels:
+          severity: info
+        annotations:
+          summary: "Test Notification for Bike Inventory"
+          description: "This is a test notification to verify Alertmanager email setup."
