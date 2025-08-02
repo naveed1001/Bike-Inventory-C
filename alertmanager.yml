@@ -1,10 +1,10 @@
 # ✉️ GLOBAL EMAIL SETTINGS
 global:
   smtp_smarthost: 'smtp.gmail.com:587'   # Gmail SMTP server and port (TLS-enabled)
-  smtp_from: '${SMTP_FROM}'   # Email address sending FROM
+  smtp_from: 'naveedravian10001@gmail.com'   # Email address sending FROM
 
   # Gmail login credentials for authentication
-  smtp_auth_username: '${SMTP_FROM}'
+  smtp_auth_username: 'naveedravian10001@gmail.com'
   smtp_auth_password: '${SMTP_AUTH_PASSWORD}'
 
   smtp_require_tls: true   # Require TLS for secure email sending
@@ -12,7 +12,7 @@ global:
   smtp_hello: 'localhost'   # The "Hello" hostname used during SMTP handshake (can be anything)
 
 
-# 🔁 ROUTING RULES FOR ALERTS
+# 🔁 ROUTING RULES FOR ALERTS 
 route:
   receiver: 'email-notifications'   # All alerts go to this receiver
   group_by: ['alertname', 'app']   # Alerts with the same alertname and app label will be grouped together
