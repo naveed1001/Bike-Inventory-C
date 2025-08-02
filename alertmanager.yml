@@ -33,10 +33,13 @@ receivers:
 
         # Custom subject for the email using alert annotations
         headers:
-          Subject: 'Alert: {{ .Annotations.summary }}'
+          Subject: 'Alert: {{ range .Alerts }}{{ .Annotations.summary }}{{ end }}'
 
         # Email body in HTML format
         html: |
-          <p><b>Alert: {{ .Annotations.summary }}</b></p>
-          <p>{{ .Annotations.description }}</p>
-          <p>Time: {{ .StartsAt }}</p>
+          {{ range .Alerts }}
+            <p><b>Alert: {{ .Annotations.summary }}</b></p>
+            <p>{{ .Annotations.description }}</p>
+            <p>Time: {{ .StartsAt }}</p>
+            <hr>
+          {{ end }}
